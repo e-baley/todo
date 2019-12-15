@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 const char* filename = ".todolist";
 
@@ -31,6 +32,20 @@ int insert_todo(FILE* f, char** todo) {
     return 0;
 }
 
+int view_todo(FILE* f) {
+    if(f == NULL) return -1;
+
+    char* line = NULL;
+    size_t len = 0;
+    ssize_t nread = 0;
+
+    while((nread = getline(&line, &len, f)) != -1)
+        fwrite(line, nread, 1, stdout);
+
+    free(line);
+    return 0;
+}
+
 int main(int argc, char** argv) {
     FILE* f = fopen(filename, "a+");
     
@@ -50,6 +65,7 @@ int main(int argc, char** argv) {
             break;
 
         default:
+            view_todo(f);
             break;
     }
 
