@@ -22,7 +22,7 @@ void free_todos(struct task* t);
 struct task* add_todo(struct task* t, char** description);
 char* create_description(char** ptr_str);
 long get_description_length(char** ptr_str);
-int complete_todo(FILE* f, char** cmd);
+void complete_todo(struct task* t, char** cmd);
 
 int define_command(int *argc, char** argv) {
     if(*argc <= 1)
@@ -71,7 +71,7 @@ void display_todos(struct task* t, FILE* f) {
     if(t == NULL)
         return;
 
-    fprintf(f, "%d 0 %s\n", t->id, t->description);
+    fprintf(f, "%d %d %s\n", t->id, t->status, t->description);
 
     display_todos(t->next_task, f);
 }
@@ -145,9 +145,7 @@ long get_description_length(char** ptr_str) {
     return total_length;
 }
 
-int complete_todo(FILE* f, char** cmd) {
-    if(f == NULL) return -1;
-
+void complete_todo(struct task* t, char** cmd) {
     int id = 0;
     while(*(cmd) != NULL) {
         if(strcmp(*(cmd), "-id") == 0 || strcmp(*(cmd), "-i") == 0) {
@@ -157,35 +155,9 @@ int complete_todo(FILE* f, char** cmd) {
         ++cmd;
     }
 
-    char* filename_tmp = ".todolisttmp";
-    FILE* out = fopen(filename_tmp, "w");
-    if(out == NULL) return -1;
+    while(t->id != id && t->next_task != NULL) t = t->next_task;
 
-    char* line = NULL;
-    size_t len = 0;
-    ssize_t nread = 0;
-
-    struct task* t = (struct task*) malloc(sizeof(struct task)); 
-    getline(&line, &len, f);
-    while((nread = getline(&line, &len, f)) != -1) {
-        fwrite(line, 1, nread, out);
-        t->description = (char*) malloc(sizeof(char) * len);
-
-        sscanf(line, "%d %d %[^\t\n]", &t->id, &t->status, t->description);
-        if(t->id == id) {
-            printf("I have to delete the task val: %d\n", id);
-            printf("status=%d\n", t->status);
-            printf("description=%s\n", t->description);
-        }
-
-        free(t->description);
-    }
-
-    free(line);
-    free(t);
-    fclose(out);
-    
-    return 0;
+    if(t->id == id) t->status = DONE;
 }
 
 int main(int argc, char** argv) {
@@ -201,7 +173,8 @@ int main(int argc, char** argv) {
             break;
 
         case COMPLETE:
-            //complete_todo(f, argv+1);
+            complete_todo(t, argv+1);
+            save_todos(t, filename);
             break;
 
         default:
