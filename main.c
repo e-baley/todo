@@ -157,9 +157,9 @@ void complete_todo(struct task* t, char** cmd) {
         ++cmd;
     }
 
-    while(t->id != id && t->next_task != NULL) t = t->next_task;
+    while(t != NULL && t->id != id && t->next_task != NULL) t = t->next_task;
 
-    if(t->id == id) t->status = DONE;
+    if(t != NULL && t->id == id) t->status = DONE;
 }
 
 int main(int argc, char** argv) {
