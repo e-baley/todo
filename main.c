@@ -56,12 +56,8 @@ struct task* load_todos(const char* filename) {
         t->description = (char*) malloc(sizeof(char) * len);
         sscanf(line, "%d %d %[^\t\n]", &t->id, &t->status, t->description);
 
-        if(t_head == NULL)
-            t_head = t;
-        
-        if(t_tail != NULL)
-            t_tail->next_task = t;
-        
+        if(t_head == NULL) t_head = t;
+        if(t_tail != NULL) t_tail->next_task = t;
         t_tail = t;
     }
 
@@ -117,8 +113,7 @@ struct task* add_todo(struct task* t, char** description) {
     n->description = create_description(description);
     n->next_task = NULL;
 
-    if(t_head == NULL)
-        t_head = n;
+    if(t_head == NULL) t_head = n;
     t->next_task = n;
 
     return t_head;
@@ -132,10 +127,7 @@ char* create_description(char** ptr_str) {
     strcpy(description, "");
     while(*(ptr_str) != NULL) {
         strcat(description, *(ptr_str));
-        
-        if(*(ptr_str+1) != NULL)
-            strcat(description, " ");
-
+        if(*(ptr_str+1) != NULL) strcat(description, " ");
         ++ptr_str;
     }
     
