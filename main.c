@@ -3,7 +3,6 @@
 #include <string.h>
 
 const char* filename = ".todolist";
-const char* filename_tmp = ".todolisttmp";
 
 enum CMD_TYPE {VIEW, INSERT, COMPLETE};
 enum TASK_STATUS {PENDING, IN_PROGRESS, DONE};
@@ -12,13 +11,18 @@ struct task {
     int id;
     int status;
     char* description;
+    struct task* next_task;
 };
 
 int define_command(int *argc, char** argv);
-int insert_todo(FILE* f, char** todo);
-int view_todo(FILE* f, FILE* out, int skip_first_row);
+struct task* load_todos(const char* filename);
+void display_todos(struct task* t, FILE* f);
+void save_todos(struct task* t, const char* filename);
+void free_todos(struct task* t);
+struct task* add_todo(struct task* t, char** description);
+char* create_description(char** ptr_str);
+long get_description_length(char** ptr_str);
 int complete_todo(FILE* f, char** cmd);
-int get_current_id(FILE* f);
 
 int define_command(int *argc, char** argv) {
     if(*argc <= 1)
@@ -30,45 +34,123 @@ int define_command(int *argc, char** argv) {
     return INSERT;
 }
 
-int insert_todo(FILE* f, char** todo) {
-    if(f == NULL) return -1;
-
-    FILE* out = fopen(filename_tmp, "w");
-    if(out == NULL) return -1;
-
-    int id_todo = get_current_id(f)+1;
-    fprintf(out, "%d\n", id_todo);
-    view_todo(f, out, 1);
-    
-    fprintf(out, "%d %d ", id_todo, PENDING);
-    while(1) {
-        fprintf(out, "%s", *(todo));
-        todo = todo+1;
-        if(*(todo) == NULL) break;
-        fprintf(out, " ");
+struct task* load_todos(const char* filename) {
+    FILE* f = fopen(filename, "r+");
+    if(f == NULL) {
+        fprintf(stderr, "Error opening file %s\n", filename);
+        exit(-1);
     }
-    fprintf(out, "\n");
 
-    fclose(out);
-    remove(filename);
-    rename(filename_tmp, filename);
-   
-    return 0;
-}
-
-int view_todo(FILE* f, FILE* out, int skip_first_row) {
-    if(f == NULL) return -1;
-
+    struct task* t_head = NULL;
+    struct task* t_tail = NULL;
+    struct task* t = NULL;
     char* line = NULL;
     size_t len = 0;
     ssize_t nread = 0;
 
-    if(skip_first_row == 1) getline(&line, &len, f);
-    while((nread = getline(&line, &len, f)) != -1)
-        fwrite(line, 1, nread, out);
+    while((nread = getline(&line, &len, f)) != -1) {
+        t = (struct task*) malloc(sizeof(struct task));
+        if(t == NULL)
+            exit(-1);
+        
+        t->description = (char*) malloc(sizeof(char) * len);
+        sscanf(line, "%d %d %[^\t\n]", &t->id, &t->status, t->description);
+
+        if(t_head == NULL)
+            t_head = t;
+        
+        if(t_tail != NULL)
+            t_tail->next_task = t;
+        
+        t_tail = t;
+    }
 
     free(line);
-    return 0;
+    fclose(f);
+
+    return t_head;
+}
+
+void display_todos(struct task* t, FILE* f) {
+    if(t == NULL)
+        return;
+
+    fprintf(f, "%d 0 %s\n", t->id, t->description);
+
+    display_todos(t->next_task, f);
+}
+
+void save_todos(struct task* t, const char* filename) {
+    FILE* f = fopen(filename, "w");
+    if(f == NULL) {
+        fprintf(stderr, "Error opening file %s\n", filename);
+        exit(-1);
+    }
+
+    display_todos(t, f);
+
+    fclose(f);
+}
+
+void free_todos(struct task* t) {
+    if(t != NULL) {
+        free(t->description);
+        free(t);
+
+        if(t->next_task == NULL)
+            return;
+
+        free_todos(t->next_task);
+    }
+}
+
+struct task* add_todo(struct task* t, char** description) { 
+    struct task* t_head = t;
+    while(t->next_task != NULL) t = t->next_task;
+
+    struct task* n = (struct task*) malloc(sizeof(struct task*));
+    if(n == NULL)
+        exit(-1);
+
+    n->id = t->id + 1;
+    n->status = PENDING;
+    n->description = create_description(description);
+    n->next_task = NULL;
+
+    if(t_head == NULL)
+        t_head = n;
+    t->next_task = n;
+
+    return t_head;
+}
+
+char* create_description(char** ptr_str) {
+    char* description = (char*) malloc(get_description_length(ptr_str) * sizeof(char));
+    if(description == NULL)
+        exit(-1);
+
+    strcpy(description, "");
+    while(*(ptr_str) != NULL) {
+        strcat(description, *(ptr_str));
+        
+        if(*(ptr_str+1) != NULL)
+            strcat(description, " ");
+
+        ++ptr_str;
+    }
+    
+    return description;
+}
+
+long get_description_length(char** ptr_str) {
+    long total_length = 0;
+    
+    while(*(ptr_str) != NULL) {
+        total_length += strlen(*(ptr_str)) + 1;
+        ++ptr_str;
+    }
+
+    return total_length;
 }
 
 int complete_todo(FILE* f, char** cmd) {
@@ -83,6 +165,7 @@ int complete_todo(FILE* f, char** cmd) {
         ++cmd;
     }
 
+    char* filename_tmp = ".todolisttmp";
     FILE* out = fopen(filename_tmp, "w");
     if(out == NULL) return -1;
 
@@ -113,45 +196,28 @@ int complete_todo(FILE* f, char** cmd) {
     return 0;
 }
 
-int get_current_id(FILE* f) {
-    if(f == NULL) return -1;
-
-    fseek(f, 0L, SEEK_SET);
-
-    int id = 0;
-    fscanf(f, "%d", &id);
-
-    return id;
-}
-
 int main(int argc, char** argv) {
-    FILE* f = fopen(filename, "a+");
     
     int mode = define_command(&argc, argv);
 
-    if(f == NULL) {
-        fprintf(stderr, "Error opening file %s\n", filename);
-        return -1;
-    }
+    struct task* t = load_todos(filename);
 
     switch(mode) {
         case INSERT:
-            insert_todo(f, argv+1);
+            t = add_todo(t, argv+1);
+            save_todos(t, filename);
             break;
 
         case COMPLETE:
-            complete_todo(f, argv+1);
+            //complete_todo(f, argv+1);
             break;
 
         default:
-            view_todo(f, stdout, 1);
+            display_todos(t, stdout);
             break;
     }
 
-    if(fclose(f) == EOF) {
-        fprintf(stderr, "Error closing file %s\n", filename);
-        return -1;
-    }
+    free_todos(t);
 
     return 0;
 }
