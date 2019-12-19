@@ -35,7 +35,7 @@ int define_command(int *argc, char** argv) {
 }
 
 struct task* load_todos(const char* filename) {
-    FILE* f = fopen(filename, "r+");
+    FILE* f = fopen(filename, "a+");
     if(f == NULL) {
         fprintf(stderr, "Error opening file %s\n", filename);
         exit(-1);
@@ -102,19 +102,21 @@ void free_todos(struct task* t) {
 
 struct task* add_todo(struct task* t, char** description) { 
     struct task* t_head = t;
-    while(t->next_task != NULL) t = t->next_task;
+    while(t != NULL && t->next_task != NULL) t = t->next_task;
 
     struct task* n = (struct task*) malloc(sizeof(struct task*));
     if(n == NULL)
         exit(-1);
 
-    n->id = t->id + 1;
+    n->id = (t != NULL) ? t->id + 1 : 1;
     n->status = PENDING;
     n->description = create_description(description);
     n->next_task = NULL;
 
-    if(t_head == NULL) t_head = n;
-    t->next_task = n;
+    if(t_head == NULL)
+        t_head = n;
+    else
+        t->next_task = n;
 
     return t_head;
 }
