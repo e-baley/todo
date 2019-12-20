@@ -16,7 +16,7 @@ struct task {
 
 int define_command(int *argc, char** argv);
 struct task* load_todos(const char* filename);
-void display_todos(struct task* t, FILE* f);
+void display_todos(struct task* t, FILE* f, char* format, int status_filter);
 void save_todos(struct task* t, const char* filename);
 void free_todos(struct task* t);
 struct task* add_todo(struct task* t, char** description);
@@ -67,13 +67,14 @@ struct task* load_todos(const char* filename) {
     return t_head;
 }
 
-void display_todos(struct task* t, FILE* f) {
+void display_todos(struct task* t, FILE* f, char* format, int status_filter) {
     if(t == NULL)
         return;
 
-    fprintf(f, "%d %d %s\n", t->id, t->status, t->description);
+    if(status_filter == -1 || status_filter == t->status)
+        fprintf(f, format, t->id, t->status, t->description);
 
-    display_todos(t->next_task, f);
+    display_todos(t->next_task, f, format, status_filter);
 }
 
 void save_todos(struct task* t, const char* filename) {
@@ -83,7 +84,7 @@ void save_todos(struct task* t, const char* filename) {
         exit(-1);
     }
 
-    display_todos(t, f);
+    display_todos(t, f, "%d %d %s\n", -1);
 
     fclose(f);
 }
@@ -162,6 +163,11 @@ void complete_todo(struct task* t, char** cmd) {
     if(t != NULL && t->id == id) t->status = DONE;
 }
 
+void print_todos(struct task* t) {
+    display_todos(t, stdout, "[%d] [%d] %s\n", IN_PROGRESS);
+    display_todos(t, stdout, "[%d] [%d] %s\n", PENDING);
+}
+
 int main(int argc, char** argv) {
     
     int mode = define_command(&argc, argv);
@@ -180,7 +186,7 @@ int main(int argc, char** argv) {
             break;
 
         default:
-            display_todos(t, stdout);
+            print_todos(t);
             break;
     }
 
