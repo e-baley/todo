@@ -47,7 +47,6 @@ struct param* define_command(int *argc, char** argv) {
 
     int c;
     if(*argc > 1) {
-        int option_index = 0; 
         while((c = getopt_long(*argc, argv, "d:p:", long_options, NULL)) != -1) {
 
             switch(c) {
