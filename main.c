@@ -1,12 +1,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <getopt.h>
 
 const char* filename = ".todolist";
 const char status_tab[3] = {" ~x"};
+const struct option long_options[] = {
+    {"done",        required_argument,  NULL,  'd'},
+    {"progress",    required_argument,  NULL,  'p'},
+    {NULL,          0,                  NULL,   0}
+};
 
-enum CMD_TYPE {VIEW, INSERT, COMPLETE};
+enum CMD_TYPE {VIEW, ADD, UPDATE};
 enum TASK_STATUS {PENDING, IN_PROGRESS, DONE};
+
+struct param {
+    int command;
+    int task_status;
+    int task_id;
+};
 
 struct task {
     int id;
@@ -15,7 +28,7 @@ struct task {
     struct task* next_task;
 };
 
-int define_command(int *argc, char** argv);
+struct param* define_command(int *argc, char** argv);
 struct task* load_todos(const char* filename);
 void display_todos(struct task* t, FILE* f, char* format, int status_filter, unsigned short int status_text);
 void save_todos(struct task* t, const char* filename);
@@ -23,16 +36,39 @@ void free_todos(struct task* t);
 struct task* add_todo(struct task* t, char** description);
 char* create_description(char** ptr_str);
 long get_description_length(char** ptr_str);
-void complete_todo(struct task* t, char** cmd);
+void update_todo(struct task* t, int task_id, int task_status);
 
-int define_command(int *argc, char** argv) {
-    if(*argc <= 1)
-        return VIEW;
+struct param* define_command(int *argc, char** argv) {
+    struct param* p = (struct param*) malloc(sizeof(struct param));
+    if(p == NULL)
+        exit(-1);
 
-    if(*(argv+1)[0] == '-')
-        return COMPLETE;
+    p->command = VIEW;
 
-    return INSERT;
+    int c;
+    if(*argc > 1) {
+        int option_index = 0; 
+        while((c = getopt_long(*argc, argv, "d:p:", long_options, NULL)) != -1) {
+
+            switch(c) {
+                case 'd':
+                    p->command = UPDATE;
+                    p->task_status = DONE;
+                    p->task_id = atoi(optarg);
+                    break;
+
+                case 'p':
+                    p->command = UPDATE;
+                    p->task_status = IN_PROGRESS;
+                    p->task_id = atoi(optarg);
+                    break;
+            }
+        }
+
+        if(p->command == VIEW) p->command = ADD;
+    }
+
+    return p;
 }
 
 struct task* load_todos(const char* filename) {
@@ -153,19 +189,10 @@ long get_description_length(char** ptr_str) {
     return total_length;
 }
 
-void complete_todo(struct task* t, char** cmd) {
-    int id = 0;
-    while(*(cmd) != NULL) {
-        if(strcmp(*(cmd), "-id") == 0 || strcmp(*(cmd), "-i") == 0) {
-            id = atoi(*(cmd+1));
-            ++cmd;
-        }
-        ++cmd;
-    }
+void update_todo(struct task* t, int task_id, int task_status) {
+    while(t != NULL && t->id != task_id && t->next_task != NULL) t = t->next_task;
 
-    while(t != NULL && t->id != id && t->next_task != NULL) t = t->next_task;
-
-    if(t != NULL && t->id == id) t->status = DONE;
+    if(t != NULL && t->id == task_id) t->status = task_status;
 }
 
 void print_todos(struct task* t) {
@@ -176,18 +203,18 @@ void print_todos(struct task* t) {
 
 int main(int argc, char** argv) {
     
-    int mode = define_command(&argc, argv);
+    struct param* p = define_command(&argc, argv);
 
     struct task* t = load_todos(filename);
 
-    switch(mode) {
-        case INSERT:
+    switch(p->command) {
+        case ADD:
             t = add_todo(t, argv+1);
             save_todos(t, filename);
             break;
 
-        case COMPLETE:
-            complete_todo(t, argv+1);
+        case UPDATE:
+            update_todo(t, p->task_id, p->task_status);
             save_todos(t, filename);
             break;
 
@@ -196,6 +223,7 @@ int main(int argc, char** argv) {
             break;
     }
 
+    free(p);
     free_todos(t);
 
     return 0;
