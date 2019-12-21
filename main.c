@@ -3,6 +3,7 @@
 #include <string.h>
 
 const char* filename = ".todolist";
+const char status_tab[3] = {" ~x"};
 
 enum CMD_TYPE {VIEW, INSERT, COMPLETE};
 enum TASK_STATUS {PENDING, IN_PROGRESS, DONE};
@@ -16,7 +17,7 @@ struct task {
 
 int define_command(int *argc, char** argv);
 struct task* load_todos(const char* filename);
-void display_todos(struct task* t, FILE* f, char* format, int status_filter);
+void display_todos(struct task* t, FILE* f, char* format, int status_filter, unsigned short int status_text);
 void save_todos(struct task* t, const char* filename);
 void free_todos(struct task* t);
 struct task* add_todo(struct task* t, char** description);
@@ -67,14 +68,18 @@ struct task* load_todos(const char* filename) {
     return t_head;
 }
 
-void display_todos(struct task* t, FILE* f, char* format, int status_filter) {
+void display_todos(struct task* t, FILE* f, char* format, int status_filter, unsigned short int status_text) {
     if(t == NULL)
         return;
 
-    if(status_filter == -1 || status_filter == t->status)
-        fprintf(f, format, t->id, t->status, t->description);
+    if(status_filter == -1 || status_filter == t->status) {
+        if(status_text == 1)
+            fprintf(f, format, t->id, status_tab[t->status], t->description);
+        else
+            fprintf(f, format, t->id, t->status, t->description);
+    }
 
-    display_todos(t->next_task, f, format, status_filter);
+    display_todos(t->next_task, f, format, status_filter, status_text);
 }
 
 void save_todos(struct task* t, const char* filename) {
@@ -84,7 +89,7 @@ void save_todos(struct task* t, const char* filename) {
         exit(-1);
     }
 
-    display_todos(t, f, "%d %d %s\n", -1);
+    display_todos(t, f, "%d %d %s\n", -1, 0);
 
     fclose(f);
 }
@@ -164,8 +169,9 @@ void complete_todo(struct task* t, char** cmd) {
 }
 
 void print_todos(struct task* t) {
-    display_todos(t, stdout, "[%d] [%d] %s\n", IN_PROGRESS);
-    display_todos(t, stdout, "[%d] [%d] %s\n", PENDING);
+    display_todos(t, stdout, "[%d] [%c] %s\n", IN_PROGRESS, 1);
+    display_todos(t, stdout, "[%d] [%c] %s\n", PENDING, 1);
+    display_todos(t, stdout, "[%d] [%c] %s\n", DONE, 1);
 }
 
 int main(int argc, char** argv) {
