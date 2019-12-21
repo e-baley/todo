@@ -1,8 +1,15 @@
 CC=gcc
 CFLAGS=-g -Wall
+LFLAGS=-lm
+DEPS=todo_lib.h
+OBJS=main.o todo_lib.o
 
-todo: main.c
-	$(CC) $(CFLAGS) -o todo main.c
+
+%.o: %.c $(DEPS)
+	$(CC) $(CFLAGS) $(LFLAGS) -c -o $@ $<
+
+todo: $(OBJS) 
+	$(CC) $(CFLAGS) $(LFLAGS) -o $@ $^
 
 clean:
-	rm -rf todo
+	rm -rf $(OBJS) todo

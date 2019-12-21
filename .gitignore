@@ -1,2 +1,4 @@
 .todolist
 todo
+*.o
+*.backup
