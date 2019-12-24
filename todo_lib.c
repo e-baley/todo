@@ -14,7 +14,7 @@ const struct option long_options[] = {
 };
 
 struct param* define_command(int *argc, char** argv) {
-    struct param* p = (struct param*) malloc(sizeof(struct param));
+    struct param* p = (struct param*) calloc(1, sizeof(struct param));
     if(p == NULL)
         exit(-1);
 
@@ -60,11 +60,11 @@ struct task* load_todos(const char* filename) {
     ssize_t nread = 0;
 
     while((nread = getline(&line, &len, f)) != -1) {
-        t = (struct task*) malloc(sizeof(struct task));
+        t = (struct task*) calloc(1, sizeof(struct task));
         if(t == NULL)
             exit(-1);
         
-        t->description = (char*) malloc(sizeof(char) * len);
+        t->description = (char*) calloc(len, sizeof(char));
         sscanf(line, "%d %d %[^\t\n]", &t->id, &t->status, t->description);
 
         if(t_head == NULL) t_head = t;
@@ -120,7 +120,7 @@ struct task* add_todo(struct task* t, char** description) {
     struct task* t_head = t;
     while(t != NULL && t->next_task != NULL) t = t->next_task;
 
-    struct task* n = (struct task*) malloc(sizeof(struct task*));
+    struct task* n = (struct task*) calloc(1, sizeof(struct task*));
     if(n == NULL)
         exit(-1);
 
@@ -138,7 +138,7 @@ struct task* add_todo(struct task* t, char** description) {
 }
 
 char* create_description(char** ptr_str) {
-    char* description = (char*) malloc(get_description_length(ptr_str) * sizeof(char));
+    char* description = (char*) calloc(get_description_length(ptr_str), sizeof(char));
     if(description == NULL)
         exit(-1);
 
